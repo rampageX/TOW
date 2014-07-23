@@ -1,0 +1,8 @@
+#dnsmasq.conf append file
+conf-dir=/jffs/dnsmasq/custom
+# Tunlr DNS updater for dnsmasq
+server=/spotify.ca/185.37.37.37
+server=/spotify.ca/185.37.37.185
+server=/spotify.com/185.37.37.37
+server=/spotify.com/185.37.37.185
+

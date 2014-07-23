@@ -1,0 +1,8 @@
+#!/bin/sh
+#Before all system services are stopped, usually on a reboot.
+
+TOWINIT="/jffs/tow/init.d/"
+
+${TOWINIT}S01pdnsd stop
+${TOWINIT}S03redsocks2 stop
+${TOWINIT}S02cow stop

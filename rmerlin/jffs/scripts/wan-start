@@ -1,0 +1,11 @@
+#!/bin/sh
+#When the WAN interface just came up. Good place to put scripts that depend on the WAN interface (for example, to update an IPv6 tunnel, or a dynamic DNS).
+
+TOWINIT="/jffs/tow/init.d/"
+
+${TOWINIT}S01pdnsd
+${TOWINIT}S03redsocks2
+${TOWINIT}S04ssledge
+${TOWINIT}S02cow
+
+[ -z "`cru l | grep wdog`" ] && cru a tow_watchdog "*/1 * * * * /jffs/tow/init.d/wdog"

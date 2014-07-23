@@ -1,0 +1,81 @@
+#!/bin/sh
+
+alias elog='logger -t FIREWALL -s'
+alias ping='/bin/ping'
+
+#server info
+ss_server="xxx.5bird.com"
+ssl_server="xxx.gfw.io"
+
+#### Do not EDIT next!!! ####
+
+#load iptables REDIRECT moudel
+[ $(lsmod | grep "ipt_REDIRECT" | wc -l) -eq 0 ] && modprobe ipt_REDIRECT
+
+ipt() {
+    [ $# -lt 1 ] && exit 1
+
+    #REDIRECT PORT
+    case "$1" in
+    rs)
+        RSPORT=8777
+        serverdomain="$ss_server"
+        ;;
+    ssl)
+        RSPORT=8096
+        serverdomain="$ssl_server"
+        ;;
+    off)
+        elog "iptables for proxy were clear."
+        exit 1
+        ;;
+    *)
+        echo "Usage: $0 {rs|ssl|off}"
+        exit 1
+    esac
+
+    #Define Ports
+	DEST=$RSPORT
+
+    # redirect all subnet or some ips only
+    if [ $# -eq 1 ]; then
+        SOUCLI="-s `nvram get lan_ipaddr`/`nvram get lan_netmask`"
+    else
+        BIP="$(echo `nvram get lan_ipaddr` | cut -d. -f1-3)"
+        SOUCLI="-m iprange --src-range ${BIP}.$2-${BIP}.$3"
+    fi
+
+    # Mode select paramete
+    REDIRECTOR="REDSOCKS"
+
+    # Create new chain
+    iptables -t nat -X $REDIRECTOR
+    iptables -t nat -N $REDIRECTOR
+
+    # Ignore your proxy server's addresses
+    # It's very IMPORTANT, just be careful.
+    local remoteip="`ping -q -w1 $serverdomain | grep PING | sed -e "s/).*//" | sed -e "s/.*(//"`"
+
+    # Do not redirect traffic to the followign address ranges
+    iptables -t nat -A $REDIRECTOR -d 0.0.0.0/8 -j RETURN
+    iptables -t nat -A $REDIRECTOR -d 10.0.0.0/8 -j RETURN
+    iptables -t nat -A $REDIRECTOR -d 127.0.0.0/8 -j RETURN
+    iptables -t nat -A $REDIRECTOR -d 169.254.0.0/16 -j RETURN
+    iptables -t nat -A $REDIRECTOR -d 172.16.0.0/12 -j RETURN
+    iptables -t nat -A $REDIRECTOR -d 192.168.0.0/16 -j RETURN
+    iptables -t nat -A $REDIRECTOR -d 224.0.0.0/4 -j RETURN
+    iptables -t nat -A $REDIRECTOR -d 240.0.0.0/4 -j RETURN
+
+	iptables -t nat -A $REDIRECTOR -d "$remoteip" -j RETURN
+
+	# Anything else should be redirected to $REDIRECTOR's local port
+	iptables -t nat -A $REDIRECTOR -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports $DEST
+
+    # Apply the rules
+    iptables -t nat -A PREROUTING -i `nvram get lan_ifname` -p tcp $SOUCLI -j $REDIRECTOR
+    #iptables -t nat -A OUTPUT -p tcp -j $REDIRECTOR
+}
+
+#iptstart
+ipt rs
+#iptend

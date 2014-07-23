@@ -1,0 +1,2 @@
+#!/bin/sh
+#Just before unmounting a partition. This is a blocking script, so be careful with it. The mount point is passed as an argument to the script

@@ -1,0 +1,2 @@
+#!/bin/sh
+#Called whenever an OpenVPN server gets started/stopped, or an OpenVPN client connects to a remote server. Uses the same syntax/parameters as the "up" and "down" scripts in OpenVPN.

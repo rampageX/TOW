@@ -1,0 +1,2 @@
+#!/bin/sh
+#After all other system services have been started at boot. This is the best place to stop one of these services, and restart it with a different configuration, for example (be aware that any time the service gets manually restarted it will revert back to the original setup however).

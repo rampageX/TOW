@@ -1,0 +1,2 @@
+#!/bin/sh
+#Just before a partition gets mounted. This is run in a blocking call and will block the mounting of the partition for which it is invoked till its execution is complete. This is done so that it can be used for things like running e2fsck on the partition before mounting. This script is also passed the device path being mounted as an argument which can be used in the script using $1.

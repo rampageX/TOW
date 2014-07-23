@@ -1,0 +1,2 @@
+#!/bin/sh
+#NAT rules (i.e. port forwards and such) have been applied to the NAT table. This is where you will want to put your own NAT table custom rules. For example, a port forward that only allows connections coming from a specific IP.

@@ -1,0 +1,2 @@
+#!/bin/sh
+#Called whenever a DHCP event occurs on the WAN interface. The type of event is passed as an argument; possible event types in the version of udhcpc in ASUSWRT are deconfig (when udhcpc starts and when a lease is lost), bound (when a lease and new IP address is acquired), and renew (when a lease is renewed, but the IP did not change).

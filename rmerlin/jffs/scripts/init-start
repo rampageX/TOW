@@ -1,0 +1,2 @@
+#!/bin/sh
+#Right after JFFS just got mounted, and before any of the services get start. This is the earliest part of the boot process where you can insert something.
