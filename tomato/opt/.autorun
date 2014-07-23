@@ -1,0 +1,19 @@
+#!/bin/sh
+##autorun script when wan up or firewall changed.
+autorun_config() {
+if [ -f /var/notice/wan ]; then
+   for s in /opt/etc/config/*.wanup; do $s; done
+   for s in /opt/etc/config/*.fire; do $s; done
+fi
+}
+
+##autorun S* scripts
+autorun_s() {
+if [ -d /opt/etc/init.d ]; then
+  for f in /opt/etc/init.d/S* ; do
+      [ -x $f ] && $f start
+  done
+fi
+}
+
+autorun_config

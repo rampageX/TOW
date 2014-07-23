@@ -1,0 +1,11 @@
+#!/bin/sh
+SP="/opt/etc/init.d/"
+${SP}S26pdnsd
+${SP}S27obssh
+${SP}S17shadowsocks start
+${SP}S17shadowsocks redir
+${SP}S19redsocks
+
+sleep 10
+[ "`iptables -t nat -nvL | grep "gfwlist" | wc -l`" -gt 1 ] && \
+service firewall restart

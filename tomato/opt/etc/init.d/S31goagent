@@ -1,0 +1,70 @@
+#!/bin/sh
+BIN=GoAgent
+LBIN="/opt/bin/python2.7"
+SFILE="/opt/etc/py/ga/proxy.py"
+PID_F="/var/run/${BIN}.pid"
+alias elog="logger -t $BIN -s"
+COND=$1
+[ $# -eq 0 ] && COND="start"
+
+do_start() {
+    if [ -e "$PID_F" ]
+    then
+        elog "$BIN already running."
+    else
+        elog "Starting $BIN... "
+        nohup $LBIN $SFILE > /dev/null 2>&1 &
+        if [ "$?" != "0" ]; then
+			elog "$0 - $BIN startup failed"
+		else
+			echo $! > $PID_F
+			elog "$BIN startup Success"
+		fi
+    fi
+}
+
+do_stop() {
+    elog "Stopping $BIN... "
+    if [ -e "$PID_F" ]; then
+        kill -9 `cat ${PID_F}` && elog "Stopping $BIN Success." || \
+        elog "Stopping $BIN Failed."
+        rm -f $PID_F
+    else
+        elog "$BIN not running, Noting to stop."
+    fi
+}
+
+do_watchdog() {
+    ct=`netstat -ln | grep "8086" | wc -l`
+    while [ $ct -ne 1 ]
+    do
+        elog "$BIN stopped abnormal, try to restart it..."
+        elog "Restarting $BIN... "
+        do_stop
+        sleep 3
+        do_start
+        sleep 5
+        ct=`netstat -ln | grep "8087" | wc -l`
+    done
+}
+
+case $COND in
+start)
+    do_start
+    ;;
+stop)
+    do_stop
+    ;;
+watchdog)
+    do_watchdog
+    ;;
+restart)
+    elog "Restarting $BIN... "
+    do_stop
+    sleep 3
+    do_start
+    ;;
+*)
+  elog "Usage: $0 (start|stop|restart|watchdog)"
+  exit 1
+esac

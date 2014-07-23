@@ -1,0 +1,74 @@
+#!/bin/sh
+WEBVPN_SERVER="www.fuckgfw.com:7474"
+
+PACK_NAME="webvpn"
+BIN_PROXY="3proxy"
+BINPATH="/opt/sbin/"
+BIN_CAT="socat"
+BIN_CAT_PATH="/opt/bin/"
+CFG="/opt/etc/3proxy.cfg"
+CMD_CAT="tcp-listen:8075,fork openssl:$WEBVPN_SERVER,verify=0"
+PID_PROXY="/var/run/3proxy.pid"
+PID_CAT="/var/run/socat.pid"
+
+alias elog="logger -t $BIN -s"
+
+start_os() {
+    elog "Starting $PACK_NAME... "
+    if [ -n "`pidof $BIN_PROXY`" ]; then
+        elog "${PACK_NAME} already running!"
+    else
+		${BIN_CAT_PATH}${BIN_CAT} $CMD_CAT > /dev/null 2>&1 &
+        ${BINPATH}${BIN_PROXY} $CFG > /dev/null 2>&1 &
+        if [ "$?" = "0" ]; then
+			elog "$PACK_NAME start success. "
+			echo $(pidof $BIN_PROXY) > $PID_PROXY
+			echo $(pidof $BIN_CAT) > $PID_CAT
+		else
+			elog "$PACK_NAME start failed. "
+		fi
+    fi
+}
+
+stop_os() {
+    elog "Stopping $PACK_NAME... "
+    [ -n "`pidof $BIN_PROXY`" ] && { killall $BIN_PROXY; rm $PID_PROXY; }
+    [ -n "`pidof $BIN_CAT`" ] && { killall $BIN_CAT; rm $PID_CAT; }
+    elog "$PACK_NAME Stopped. "
+}
+
+restart_os() {
+    elog "Restarting $PACK_NAME... "
+    stop_os
+    sleep 3
+    start_os
+    elog "$PACK_NAME Restart Success. "
+}
+
+COND=$1
+[ $# -eq 0 ] && COND="start"
+case $COND in
+stop)
+    stop_os
+  ;;
+start)
+    start_os
+  ;;
+restart)
+    restart_os
+  ;;
+watchdog)
+    ct=$(netstat -ln | grep "8075" | wc -l)
+    rsc=$(pidof S28webvpn | wc -w)
+    while [ $ct -ne 1 -a $rsc -lt 3 ]
+    do
+        elog "$PACK_NAME stopped abnormal, try to restart it..."
+        restart_os
+        sleep 5
+        ct=`netstat -ln | grep "8085" | wc -l`
+    done
+  ;;
+*)
+  elog "Usage: $0 (start|stop|restart|watchdog)"
+  exit 1
+esac

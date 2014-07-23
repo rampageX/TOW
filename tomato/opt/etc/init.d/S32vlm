@@ -1,0 +1,39 @@
+#!/bin/sh
+BIN=vlmcsd
+BINPATH="/opt/sbin/"
+LOGPATH="/opt/var/"
+LOGFILE="${LOGPATH}/vlmcsd.log"
+PIDFILE="/opt/var/run/$BIN.pid"
+RUNCMD="$BIN -4 -l $LOGFILE -p $PIDFILE"
+alias elog="logger -t $BIN -s"
+
+COND=$1
+[ $# -eq 0 ] && COND="start"
+
+case $COND in
+stop)
+    elog "Stopping $BIN... "
+    [ -n "`pidof $BIN`" ] && { killall $BIN; rm $PIDFILE; }
+    elog "$BIN Stopped. "
+    ;;
+start)
+    elog "Starting $BIN... "
+    if [ -n "`pidof $BIN`" ]
+    then
+        elog "$BIN already running."
+    else
+		$RUNCMD
+        [ "$?" = "0" ] && elog "$BIN started Success." || elog "$BIN started failed."
+    fi
+  ;;
+restart)
+    elog "Restarting $BIN... "
+	[ -n "`pidof $BIN`" ] && killall $BIN
+	sleep 1
+	$RUNCMD
+    [ "$?" = "0" ] && elog "$BIN Restart Success. " || elog "$BIN Restart failed. "
+    ;;
+*)
+    elog "Usage: $0 (start|stop|restart)"
+    exit 1
+esac

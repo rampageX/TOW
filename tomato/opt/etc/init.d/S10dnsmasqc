@@ -1,0 +1,158 @@
+#!/bin/sh
+alias wget="/opt/bin/wget  -q --no-check-certificate --dns-timeout=60 --connect-timeout=60 --read-timeout=60 --tries=3 --wait=5"
+alias base64=/opt/bin/base64
+alias cat=/opt/bin/cat
+alias elog="logger -t DNSMASQ_RENEW -s"
+
+SHR=0
+
+# Tunlr DNS updater for dnsmasq. 2013, Alexander Ryzhov
+# Adapted For asuswrt-merlin firmware.
+tunlr() {
+    echo "Tunlr DNS updater started"
+
+    local DNSMASQ_CONF='/opt/etc/dnsmasq/custom/tunlr.cfg'
+    local DOMAINS=$(cat /opt/etc/dnsmasq/tunlr/domains.txt)
+    local IPS=$(wget -q -O - \
+        "http://tunlr.net/tunapi.php?action=getdns&version=1&format=json" \
+        | sed "s/\"dns.\"://g" | sed "s/[{}]//g" | sed "s/,/\ /g" |sed "s/\"//g")
+    if [ -z "$IPS" ] || [ -n "$(echo $IPS | sed 's/[0-9\.\ ]//g')" ] ; then
+        echo "Tunlr DNS addresses not retrieved, exiting."
+        return
+    fi
+    echo -n > $DNSMASQ_CONF
+    echo "# Tunlr DNS updater for dnsmasq" >> $DNSMASQ_CONF
+    for domain in $DOMAINS
+    do
+        for dns in $IPS
+        do
+            echo "server=/${domain}/${dns}" >> $DNSMASQ_CONF
+        done
+    done
+    SHR=1
+    echo 'done.'
+}
+
+gfwlist() {
+    local GLF="/etc/dnsmasq/custom/gfwlist.cfg"
+    cd /tmp
+    wget https://autoproxy-gfwlist.googlecode.com/svn/trunk/gfwlist.txt -O gfwlist.txt
+    if [ "$?" != "0" ] || [ ! -s gfwlist.txt ] || [ $(cat gfwlist.txt | grep "http-equiv" | wc -l) -ge 1 ]; then
+        elog "gfwlist file not retrieved. Default gfwlist.cfg will be used."
+        T_PWD=`pwd -P`
+        cd /etc/dnsmasq/custom
+        if [ ! -s gfwlist.cfg ]; then
+            rm -f gfwlist.cfg
+            cp -f /usr/local/tow/gfwlist.cfg.gz .
+            gzip -d gfwlist.cfg.gz
+        fi
+        cd $T_PWD
+    else
+        base64 -d gfwlist.txt > gfwlist.dec     #Base64 decode
+        sed -i '1,20d' gfwlist.dec              #remove Restricted site
+        grep '^@@' gfwlist.dec > gfwlist.direct #direct connect
+        grep '^||' gfwlist.dec > gfwlist.p1     #pattern 1:start with "||"
+        grep '^\.' gfwlist.dec > gfwlist.p2     #pattern 2:start with "."
+        grep '^|[^|]' gfwlist.dec > gfwlist.p3  #pattern 3:start with single "|"
+        grep -v '^|\|^$\|^@\|^\.\|^\[\|^!' gfwlist.dec > gfwlist.p4 #pattern 4:others
+        echo 'converting gfwlist to domain list...'
+        sed -i 's/^||//g' gfwlist.p1    #remove the leading "||"
+        sed -i 's/\/.*$//g' gfwlist.p1  #remove anything after "/", including "/"
+        sed -i 's/\^//g' gfwlist.p1     #remove "^" if any, due to gfwlist's flawed lines
+        sed -i 's/^\.//g' gfwlist.p2    #remove the leading "."
+        sed -i 's/^google[\.\*].*//g' gfwlist.p2        #remove lines start with google. or google*
+        sed -i 's/\/.*//g' gfwlist.p2   #remove anything after "/", including "/"
+        sed -i 's/|http:\/\///g' gfwlist.p3     #remove prefix
+        sed -i 's/|https:\/\///g' gfwlist.p3    #remove prefix
+        sed -i 's/\/.*$//g' gfwlist.p3  #remove .....
+        sed -i 's/^\*\.//g' gfwlist.p3
+        grep '\.' gfwlist.p4 > gfwlist.tmp      #remove lines contain no domain
+        mv gfwlist.tmp gfwlist.p4
+        sed -i 's/\/.*$//g' gfwlist.p4  #remove....
+        sed -i 's/^google.*$//g' gfwlist.p4     #remove lines start with google
+        grep -v '\.wikipedia\.org.*' gfwlist.p4 > gfwlist.tmp   #remove wikipedia lines
+        mv gfwlist.tmp gfwlist.p4
+        cp gfwlist.p1 domainlist.tmp
+        echo '
+        '>> domainlist.tmp
+        sed 's/^[[:space:]]*//g' gfwlist.p2 | cat | sed '/^$/d' >> domainlist.tmp
+        echo '
+        '>> domainlist.tmp
+        sed 's/^[[:space:]]*//g' gfwlist.p3 | cat | sed '/^$/d' >> domainlist.tmp
+        echo '
+        '>> domainlist.tmp
+        sed 's/^[[:space:]]*//g' gfwlist.p4 | cat | sed '/^$/d' >> domainlist.tmp
+        sort domainlist.tmp | uniq > domainlist.txt
+        sed -i '/^[[:space:]]*$/d' domainlist.txt       #delete blank line
+        grep '\*' domainlist.txt > domainlist.special
+        grep '^|' domainlist.txt >> domainlist.special
+        sed -i '/\*\|^|/d' domainlist.txt
+        sed -i -e "s/.*/ipset=\/&\/gfwlist/" domainlist.txt
+        rm domainlist.tmp
+        rm domainlist.special
+        rm gfwlist.*
+        mv -f /tmp/domainlist.txt $GLF
+        sed -i '1s/^.*$/#### GFWList Domain for IPSET ####/' $GLF
+        echo 'done.'
+    fi
+}
+
+whitelist() {
+    local WLF="/etc/dnsmasq/custom/whitelist.cfg"
+    cd /tmp
+    wget https://github.com/n0wa11/gfw_whitelist/raw/master/whitelist.pac -O whitelist.txt
+    if [ "$?" != "0" ] || [ ! -s whitelist.txt ] || [ $(cat whitelist.txt | grep "http-equiv" | wc -l) -ge 1 ]; then
+        elog "whitelist file not retrieved. Default whitelist.cfg will be used."
+        T_PWD=`pwd -P`
+        cd /etc/dnsmasq/custom
+        if [ ! -s whitelist.cfg ]; then
+            rm -f whitelist.cfg
+            cp -f /usr/local/tow/whitelist.cfg.gz .
+            gzip -d whitelist.cfg.gz
+        fi
+        cd $T_PWD
+    else
+        sed -i 's/ //g' whitelist.txt        #remove all space
+        grep '^"\.' whitelist.txt > whitelist.tmp #get all domain line
+        echo 'converting whitelist to domain list...'
+        sed -i 's/^"\.//g' whitelist.tmp   #remove the leading ""."
+        sed -i 's/\/.*$//g' whitelist.tmp  #remove anything after "/", including "/"
+        sed -i 's/\"//g' whitelist.tmp     #remove """ if any, due to gfwlist's flawed lines
+        sed -i 's/\,//g' whitelist.tmp     #remove "," if any, due to gfwlist's flawed lines
+        sort whitelist.tmp | uniq > dnswhitelist.txt
+        sed -i -e "s/.*/ipset=\/&\/whitelist/" dnswhitelist.txt
+        rm whitelist.*
+        mv -f /tmp/dnswhitelist.txt $WLF
+        #pandalist
+        local TMPLISTFILE="/tmp/panda_list.txt"
+        wget -O $TMPLISTFILE https://www.pandafan.org/pac/domain_list.txt
+        if [ "$?" != "0" ]; then
+            elog "pandalist file not retrieved, skip it."
+        else
+            echo 'Converting pandalist to domain list...'
+            sed -i 's/\[//g' $TMPLISTFILE
+            sed -i 's/\]//g' $TMPLISTFILE
+            sed -i 's/, /\n/g' $TMPLISTFILE
+            sed -i "s/'//g" $TMPLISTFILE
+            sed -i "s/.*/ipset=\/&\/whitelist/" $TMPLISTFILE
+            [ -e $WLF ] && cat $TMPLISTFILE >> $WLF
+            sort $WLF | uniq > $TMPLISTFILE
+            mv -f $TMPLISTFILE $WLF
+            sed -i '1 i\###China Domain WhiteList for IPSET###' $WLF
+            [ -e $TMPLISTFILE ] && rm -f $TMPLISTFILE
+            echo 'done.'
+        fi
+    fi
+}
+
+tunlr
+gfwlist
+whitelist
+
+if [ $SHR -eq 1 ]
+    then
+        service dnsmasq restart
+        elog "DNSMASQ restart success, new Configs and Hosts working now..."
+    else
+        elog "DNSMASQ update failed, old Configs and Hosts working now..."
+fi

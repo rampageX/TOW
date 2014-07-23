@@ -1,0 +1,12 @@
+#
+# Bash initialization script
+#
+
+PS1="\[\033[01;31m\]\u@\h \[\033[01;34m\]\w \$ \[\033[00m\]"
+PATH=/opt/sbin:/opt/bin:/opt/usr/sbin:/usr/local/sbin:/sbin:/bin:/usr/sbin:/usr/bin:/opt/etc/init.d
+#LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib:/opt/lib:/opt/usr/lib
+
+export TERMINFO=/opt/share/terminfo
+
+#export PS1 PATH LD_LIBRARY_PATH
+export PS1 PATH

@@ -1,0 +1,62 @@
+#!/bin/sh
+BIN=shadowsocks
+BINPATH="/opt/sbin/"
+RUN_D="/var/run"
+PID_F="${RUN_D}/${BIN}.pid"
+PID_REDIR="${RUN_D}/${BIN}_redir.pid"
+CONF="-c /opt/etc/shadowsocks.json -l 7070 -f ${PID_F}"
+CONF_REDIR="-c /opt/etc/shadowsocks.json -l 7272 -f ${PID_REDIR}"
+alias elog="logger -t $BIN -s"
+COND=$1
+[ $# -eq 0 ] && COND="start"
+
+case $COND in
+stop)
+    elog "Stopping $BIN... "
+    [ -n "`pidof ss-redir`" ] && { killall ss-redir; rm $PID_F; elog "ss-redir Stopped. "; }
+    [ -n "`pidof ss-local`" ] && { killall ss-local; rm $PID_REDIR; elog "ss-local Stopped. "; }
+    ;;
+start)
+    elog "Starting ss-local... "
+    [ ! -d $RUN_D ] && mkdir -p $RUN_D
+    if [ -n "`pidof ss-local`" ]; then
+        elog "ss-local already running!"
+    else
+        ${BINPATH}ss-local $CONF &
+        [ "$?" = "0" ] && elog "ss-local start success. " || elog "ss-local start failed. "
+    fi
+    ;;
+restart)
+    elog "Restarting $BIN... "
+    [ ! -d $RUN_D ] && mkdir -p $RUN_D
+    if [ -n "`pidof ss-local`" ]; then
+		killall ss-local
+		rm $PID_F
+        ${BINPATH}ss-local $CONF &
+	fi
+    if [ -n "`pidof ss-redir`" ]; then
+        killall ss-redir
+        rm $PID_REDIR
+        ${BINPATH}ss-redir $CONF_REDIR &
+	fi
+    if [ -z "`pidof ss-redir`" -a -z "`pidof ss-local`" ]; then
+        elog "Neither ss-local nor ss-redir running, start both!"
+        ${BINPATH}ss-local $CONF &
+        ${BINPATH}ss-redir $CONF_REDIR &
+    fi
+    [ "$?" = "0" ] && elog "$BIN restart success. " || elog "$BIN restart failed. "
+    ;;
+redir)
+    elog "$BIN redir mode! "
+    [ ! -d $RUN_D ] && mkdir -p $RUN_D
+    if [ -n "`pidof ss-redir`" ]; then
+        elog "ss-redir already running!"
+    else
+        ${BINPATH}ss-redir $CONF_REDIR &
+        [ "$?" = "0" ] && elog "ss-redir start success. " || elog "ss-redir start failed. "
+    fi
+    ;;
+*)
+    elog "Usage: $0 (start|stop|redir|restart)"
+    exit 1
+esac

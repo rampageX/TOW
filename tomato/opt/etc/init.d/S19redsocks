@@ -1,0 +1,37 @@
+#!/bin/sh
+BIN=redsocks
+BINPATH="/opt/sbin/"
+RUN_D="/var/run"
+PID_F="${RUN_D}/${BIN}.pid"
+CONF="-c /opt/etc/redsocks.conf -p ${PID_F}"
+alias elog="logger -t $BIN -s"
+COND=$1
+[ $# -eq 0 ] && COND="start"
+
+case $COND in
+stop)
+    elog "Stopping $BIN... "
+    [ -n "`pidof $BIN`" ] && { killall $BIN; rm $PID_F; }
+    elog "$BIN Stopped. "
+    ;;
+start)
+    elog "Starting $BIN... "
+    [ ! -d $RUN_D ] && mkdir -p $RUN_D
+    if [ -n "`pidof $BIN`" ]; then
+        elog "${BIN} already running!"
+    else
+        ${BINPATH}${BIN} $CONF &
+        [ "$?" = "0" ] && elog "$BIN start success. " || elog "$BIN start failed. "
+    fi
+    ;;
+restart)
+    elog "Restarting $BIN... "
+    [ -n "`pidof $BIN`" ] && { killall $BIN; rm $PID_F; }
+    [ ! -d $RUN_D ] && mkdir -p $RUN_D
+    ${BINPATH}${BIN} $CONF &
+    [ "$?" = "0" ] && elog "$BIN restart success. " || elog "$BIN restart failed. "
+    ;;
+*)
+    elog "Usage: $0 (start|stop|restart)"
+    exit 1
+esac
