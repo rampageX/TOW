@@ -1,0 +1,27 @@
+
+# If running interactively, then
+if [ "$PS1" ] ; then
+
+    export LANG=en_US.UTF-8
+    #export http_proxy=http://192.168.1.8:8085
+    alias mc='mc -c'
+    alias useproxy='export http_proxy=http://192.168.1.8:8085'
+
+fi;
+
+# Set the Prompt
+GREEN="\[\033[0;32m\]"
+GRAY="\[\033[0;37m\]"
+CYAN="\[\033[0;36m\]"
+RED="\[\033[0;31m\]"
+NO_COLOR="\[\033[0m\]"
+PS1="$GRAY[$GREEN\h$GRAY:$CYAN\w$GRAY]$ $NO_COLOR"
+
+# Paths
+OPT_PATH="/opt/bin:/opt/sbin:/opt/usr/bin:/opt/usr/sbin:/opt/etc/init.d"
+ORG_PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/sbin"
+export PATH="${ORG_PATH}:${OPT_PATH}"
+export TERM=xterm
+export TMP=/opt/tmp
+export TEMP=/opt/tmp
+export TERMINFO=/opt/share/terminfo

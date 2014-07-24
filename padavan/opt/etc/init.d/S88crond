@@ -1,0 +1,25 @@
+#!/bin/sh
+# if app not exist
+if [ ! -f /usr/sbin/crond ]; then
+    exit 0
+fi
+if [ -n "`pidof crond`" ] ; then
+        # stop daemon
+killall -q crond
+fi
+# create /var/spool/cron/crontabs directory
+if [ ! -d /var/spool/cron/crontabs ]; then
+        mkdir -p /var/spool/cron
+        cd /var/spool/cron
+        mkdir -p /var/spool/cron/crontabs
+fi
+
+Login=`nvram get http_username`
+
+touch /var/spool/cron/crontabs/$Login
+echo "SHELL=/bin/sh" > /var/spool/cron/crontabs/$Login
+echo "MAILTO=""" >> /var/spool/cron/crontabs/$Login
+echo "HOME=/" >> /var/spool/cron/crontabs/$Login
+echo "*/1 * * * * /opt/etc/init.d/watchdog" >> /var/spool/cron/crontabs/$Login
+#echo "01 00 01 01 * /etc/storage/cron_tasks new" >> /var/spool/cron/crontabs/$Login
+/usr/sbin/crond -l 0 -L /var/log/cron.log

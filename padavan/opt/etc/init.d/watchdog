@@ -1,0 +1,16 @@
+#!/bin/sh
+alias elog="logger -t TOW-WATCHDOG -s"
+script_path="/opt/etc/init.d/"
+
+checkit() {
+proc_status=`pidof $1`
+net_status=`netstat -ln | grep $2 | wc -l`
+if [ -z "$proc_status" -o $net_status -eq 0 ]; then
+	elog "$1 stopped abnormal, try to restart it..."
+	${script_path}$3 restart
+fi
+#elog "i am WATCHDOG"
+}
+
+checkit ss-local 7171 S17shadowsocks
+checkit ss-redir 7272 S17shadowsocks

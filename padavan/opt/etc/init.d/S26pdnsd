@@ -1,0 +1,59 @@
+#!/bin/sh
+BIN=pdnsd
+BINPATH="/opt/sbin/"
+CONF="-c /opt/etc/pdnsd.conf"
+CACHEPATH="/var/cache/pdnsd"
+CACHE=$CACHEPATH/pdnsd.cache
+PID_F="/var/run/$BIN.pid"
+
+USER=nobody
+GROUP=nogroup
+
+alias elog="logger -t $BIN -s"
+
+gen_cache()
+{
+		if ! test -f "$CACHE"; then
+			mkdir -p `dirname $CACHE`
+			echo -n -e "pd13\0\0\0\0" > "$CACHE"
+			chown -R $USER.$GROUP $CACHEPATH
+		fi
+}
+
+COND=$1
+[ $# -eq 0 ] && COND="start"
+case $COND in
+stop)
+    elog "Stopping $BIN... "
+    [ -n "`pidof $BIN`" ] && { kill -15 `pidof $BIN`; rm $PID_F; }
+    elog "$BIN Stopped. "
+    ;;
+start)
+    elog "Starting $BIN... "
+    if [ -n "`pidof $BIN`" ]
+    then
+        elog "$BIN already running."
+    else
+        gen_cache
+        ${BINPATH}${BIN} $CONF
+        [ "$?" = "0" ] && elog "$BIN start success. " || elog "$BIN start failed. "
+    fi
+  ;;
+restart)
+    elog "Restarting $BIN... "
+    ct=0
+    while [ $ct -ne 2 ]
+    do
+        [ -n "`pidof $BIN`" ] && { kill -15 `pidof $BIN`; rm $PID_F; }
+        gen_cache
+        sleep 1
+        ${BINPATH}${BIN} $CONF
+        sleep 1
+        ct=`netstat -ln | grep "5454" | wc -l`
+    done
+    [ -n "`pidof $BIN`" ] && elog "$BIN Restart Success. " || elog "$BIN Restart failed"
+    ;;
+*)
+    elog "Usage: $0 (start|stop|restart)"
+    exit 1
+esac

@@ -1,0 +1,244 @@
+#!/bin/sh
+
+### Custom user script for post-update iptables
+### This script auto called after internal firewall restart
+### First param is:
+###  "start" (call at start optware),
+###  "stop" (call before stop optware),
+###  "update" (call after internal firewall restart).
+### Include you custom rules for iptables below:
+
+START=95
+STOP=95
+
+alias elog='logger -t IPT -s'
+alias ping='/bin/ping'
+
+#mode setting
+use_gfwlist=1
+use_whitelist=0
+use_http_gae=0
+gae_port=8087
+
+#list force recreate
+ipset_whitelist_force_recreate=0
+ipset_gfwlist_force_recreate=0
+
+#server info
+ss_server="pc1.5bird.com"
+ssh_server="ssh.wendangku.org"
+ssl_server="jp0123.gfw.io"
+
+#### Do not EDIT next!!! ####
+
+# Loading ipset modules
+if [ $(lsmod | grep "ip_set" | wc -l) -eq 0 ]; then
+    elog "loading ipset modules"
+    for module in ip_set ip_set_hash_ip ip_set_hash_net ip_set_bitmap_ip ip_set_list_set xt_set
+    do
+        modprobe $module
+    done
+fi
+
+do_start() {
+    [ $# -lt 1 ] && exit 1
+
+    #REDIRECT PORT
+    case "$1" in
+    ss)
+        RSPORT=8091
+        serverdomain="$ss_server"
+        ;;
+    redir)
+        RSPORT=7272
+        serverdomain="$ss_server"
+        ;;
+    gae)
+        RSPORT=8087
+        ;;
+    ssh)
+        RSPORT=8090
+        serverdomain="$ssh_server"
+        ;;
+    web)
+        RSPORT=8095
+        serverdomain="$ssl_server"
+        ;;
+    ssl)
+        RSPORT=8098
+        serverdomain="$ssl_server"
+        ;;
+    off)
+        elog "iptables for proxy were clear."
+        exit 1
+        ;;
+    *)
+        echo "Usage: $0 {ss|redir|gae|ssh|web|off}"
+        exit 1
+    esac
+
+    #Define Ports
+	DEST=$RSPORT
+	DEST_GAE=$gae_port
+
+    # redirect all subnet or some ips only
+    if [ $# -eq 1 ]; then
+        SOUCLI="-s `nvram get lan_ipaddr`/`nvram get lan_netmask`"
+    else
+        BIP="$(echo `nvram get lan_ipaddr` | cut -d. -f1-3)"
+        SOUCLI="-m iprange --src-range ${BIP}.$2-${BIP}.$3"
+    fi
+
+    # Mode select paramete
+    [ "$1" = "redir" ] && REDIRECTOR="SHADOWSOCKS" || REDIRECTOR="REDSOCKS"
+
+    # Create new chain
+    iptables -t nat -X $REDIRECTOR
+    iptables -t nat -N $REDIRECTOR
+
+    # Ignore your proxy server's addresses
+    # It's very IMPORTANT, just be careful.
+    local remoteip="`ping -q -w1 $serverdomain | grep PING | sed -e "s/).*//" | sed -e "s/.*(//"`"
+
+    # Do not redirect traffic to the followign address ranges
+    iptables -t nat -A $REDIRECTOR -d 127.0.0.0/8 -j RETURN
+    iptables -t nat -A $REDIRECTOR -d 192.168.0.0/16 -j RETURN
+
+	[ "$1" != "gae" ] && iptables -t nat -A $REDIRECTOR -d "$remoteip" -j RETURN
+
+    if [ $use_gfwlist -eq 0 -a $use_whitelist -eq 0]; then
+		# Anything else should be redirected to $REDIRECTOR's local port
+		iptables -t nat -A $REDIRECTOR -p tcp -j REDIRECT --to-ports $DEST
+    fi
+
+    #use whitelist
+    if [ $use_whitelist -eq 1 ]; then
+		ipset_whitelist_cmd="-m set --match-set whitelist dst -j RETURN"
+        checkwhitelist=$(ipset -L whitelist 2> /dev/null | wc -l)
+		[ $checkwhitelist -eq 0 ] && ipset -N whitelist iphash --hashsize 8192
+		[ $ipset_whitelist_force_recreate -eq 1 ] && {
+			elog "Force whitelist recreating..."
+			ipset -F whitelist
+			ipset -X whitelist
+			sleep 3
+			ipset -N whitelist iphash --hashsize 8192
+			elog "ipset whitelist recreate success."
+		}
+		iptables -t nat -A $REDIRECTOR -p tcp $ipset_whitelist_cmd
+    else
+		checkwhitelist=$(ipset -L whitelist 2> /dev/null | wc -l)
+		[ $checkwhitelist -ne 0 ] && {
+			ipset -F whitelist
+			ipset -X whitelist
+		}
+    fi
+
+    #use gfwlist
+    if [ $use_gfwlist -eq 1 ]; then
+		ipset_gfwlist_cmd="-m set --match-set gfwlist dst -j REDIRECT --to-ports"
+		ipset_nogaelist_cmd="-m set --match-set nogaelist dst -j REDIRECT --to-ports"
+        checkgfwlist=$(ipset -L gfwlist 2> /dev/null | wc -l)
+        [ $checkgfwlist -eq 0 ] && ipset -N gfwlist iphash --hashsize 4096
+        [ $ipset_gfwlist_force_recreate -eq 1 ] && {
+            elog "Force gfwlist recreating..."
+            ipset -F gfwlist
+            ipset -X gfwlist
+            sleep 3
+            ipset -N gfwlist iphash --hashsize 4096
+            elog "ipset gfwlist recreate success."
+        }
+        checknogaelist=$(ipset -L nogaelist 2> /dev/null | wc -l)
+        [ $checknogaelist -eq 0 ] && ipset -N nogaelist iphash --hashsize 1024
+        [ $ipset_nogaelist_force_recreate -eq 1 ] && {
+            elog "Force nogaelist recreating..."
+            ipset -F nogaelist
+            ipset -X nogaelist
+            sleep 3
+            ipset -N nogaelist iphash --hashsize 1024
+            elog "ipset nogaelist recreate success."
+        }
+        if [ "$use_http_gae" = "1" ]; then
+			iptables -t nat -A $REDIRECTOR -p tcp --dport 80 $ipset_nogaelist_cmd $DEST
+            iptables -t nat -A $REDIRECTOR -p tcp --dport 80 $ipset_gfwlist_cmd $DEST_GAE
+		fi
+		iptables -t nat -A $REDIRECTOR -p tcp -m multiport --dports 80,443 $ipset_gfwlist_cmd $DEST
+    else
+		checkgfwlist=$(ipset -L gfwlist 2> /dev/null | wc -l)
+		[ $checkgfwlist -ne 0 ] && {
+			ipset -F gfwlist
+			ipset -F nogaelist
+			ipset -X gfwlist
+			ipset -X nogaelist
+		}
+    fi
+
+    # Apply the rules
+    iptables -t nat -A PREROUTING -i `nvram get lan_ifname` -p tcp $SOUCLI -j $REDIRECTOR
+    #iptables -t nat -A OUTPUT -p tcp -j $REDIRECTOR
+}
+
+
+
+do_stop() {
+    [ $# -lt 1 ] && exit 1
+
+    #REDIRECT PORT
+    case "$1" in
+    ss)
+        RSPORT=8099
+        serverdomain="$ss_server"
+        ;;
+    redir)
+        RSPORT=7272
+        serverdomain="$ss_server"
+        ;;
+    gae)
+        RSPORT=8087
+        ;;
+    ssh)
+        RSPORT=8098
+        serverdomain="$ssh_server"
+        ;;
+    web)
+        RSPORT=8095
+        serverdomain="$web_server"
+        ;;
+    off)
+        elog "iptables for proxy were clear."
+        exit 1
+        ;;
+    *)
+        echo "Usage: $0 {ss|redir|gae|ssh|web|off}"
+        exit 1
+    esac
+
+    # Mode select paramete
+    [ "$1" = "redir" ] && REDIRECTOR="SHADOWSOCKS" || REDIRECTOR="REDSOCKS"
+
+    # Delete chain
+    iptables -t nat -X $REDIRECTOR
+    restart_firewall
+}
+
+
+case "$1" in
+start|update)
+	sleep 3
+	gfwlist_loaded="`iptables -t nat -nvL | grep "gfwlist" | wc -l`"
+	if [ "$gfwlist_loaded" -eq 0 ]; then
+		do_start redir
+		elog "firewall started"
+	else
+		elog "firewall already started"
+	fi
+
+	;;
+stop)
+	# delete iptables custom rules
+	do_stop redir
+	;;
+*)
+	echo "Usage: $0 {start|stop|update}"
+	exit 1
+	;;
+esac

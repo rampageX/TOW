@@ -1,0 +1,4 @@
+#/bin/sh
+for _TEMPVAR in `nvram show 2>/dev/null|grep "^$1"|cut -d'=' -f1`;
+	do nvram unset $_TEMPVAR;
+done

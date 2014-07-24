@@ -1,0 +1,8 @@
+{
+    "server":"xx.oo.com",
+    "server_port":13028,
+    "local_port":7171,
+    "password":"xxooxx",
+    "timeout":60,
+    "method":"aes-128-cfb"
+}

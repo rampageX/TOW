@@ -1,0 +1,2 @@
+#!/bin/sh
+ipt redir 8 50

@@ -1,0 +1,23 @@
+#!/bin/sh
+cd /opt/etc/py/fqdns
+
+POSIONEDDOMAIN="www.twitter.com twitter.com www.facebook.com facebook.com www.youtube.com youtube.com encrypted.google.com plus.google.com www.appspot.com appspot.com www.openvpn.net openvpn.net forums.openvpn.net svn.openvpn.net shell.cjb.net"
+[ -n $1 ] && LOOPTIMES=$1 || LOOPTIMES=99
+[ -n $2 ] && ONLYNEW=" --only-new " || ONLYNEW=""
+RULEFILENAME=badiplist
+
+[ -f "./badip.tmp" ] && rm badip.tmp
+for DOMAIN in $POSIONEDDOMAIN ; do
+    echo "--domain $DOMAIN " >> badip.tmp
+done
+sed -i -n '1h;1!H;${g;s/\n/ /g;p;}' badip.tmp
+domainlist=`cat badip.tmp`
+
+/opt/bin/python -u fqdns.py discover$ONLYNEW--repeat $LOOPTIMES $domainlist > $RULEFILENAME
+
+sed -i 's/\[//g' $RULEFILENAME
+sed -i 's/]//g' $RULEFILENAME
+sed -i "s/'//g" $RULEFILENAME
+sed -i "s/, /\n/g" $RULEFILENAME
+
+sort $RULEFILENAME | uniq > ${RULEFILENAME}.cfg && { rm badip.tmp; rm $RULEFILENAME; }

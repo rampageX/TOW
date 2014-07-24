@@ -1,0 +1,20 @@
+#!/bin/sh
+[ $# -eq 0 ] && { echo "Usage: $0 domain [rs]"; exit 1; }
+ipset_add_file="/etc/storage/dnsmasq/custom/whitelist_add.cfg"
+ipset_whitelist_file="/etc/storage/dnsmasq/custom/acclist.cfg"
+if [ -n "$1" ]; then
+    check_dup=`grep "ipset=/$1" $ipset_add_file`
+    check_dup_g=`grep "ipset=/$1" $ipset_whitelist_file`
+fi
+if [ -z "$check_dup" ] && [ -z "$check_dup_g" ]; then
+    echo "ipset=/$1/whitelist" >> $ipset_add_file
+    echo "$1 add to $ipset_add_file succesed!"
+else
+    echo "$1 already in whitelist file!"
+fi
+if [ -n "$2" ]; then
+    echo "Restarting dnsmasq..."
+    killall dnsmasq
+    dnsmasq
+    restart_dns
+fi
