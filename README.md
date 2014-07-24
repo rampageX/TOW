@@ -1,6 +1,6 @@
 # TOW (	Transparent Over the Wall )
 
-TOW 是一个安装在 Tomato/OpenWRT 系统上的软件包，安装之后，可以保证连接在这个路由器上的所有客户端透明翻墙。
+TOW 是一个安装在路由器系统上的软件包，安装之后，可以保证连接在这个路由器上的所有客户端透明翻墙。
 
 当前版本：1.0
 
@@ -8,14 +8,14 @@ TOW 是一个安装在 Tomato/OpenWRT 系统上的软件包，安装之后，可
 
 TOW 的设计目标是透明化/自动化，理想情况下客户端用户无需关心哪些网站无法访问，可直连网站也不会因为使用二级代理而降低访问速度。
 
-- 使用 pdnsd 特性防止 DNS 污染
+- 使用 pdnsd 特性防止 DNS 污染，不使用 TCP 查询，保证 CDN 效果
 - 支持 GoAgent, SOCKS5, [shadowsocks](https://github.com/clowwindy/shadowsocks/wiki/Shadowsocks-%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E) 和 Obfuscated ssh 等代理服务器
 - 使用 gfwlist 和 ipset 配合 iptables 处理被墙网站，仅对被墙网站使用代理
 
 # 依赖
 
-- 一台能安装 Tomato 或者 OpenWRT 的路由器
-- Tomato/OpenWRT 内含的 iptables/dnsmasq 必须编译支持 ipset
+- 一台支持 [Tomato Shibby MOD](http://http://tomato.groov.pl/) （国内为 [bwq518 增强版](http://www.right.com.cn/forum/thread-126746-1-1.html)，已自带 TOW 功能，推荐使用）或者 [RMerlin](http://www.lostrealm.ca/tower/node/80), [Padavan](http://code.google.com/p/rt-n56u/) 固件的路由器
+- 固件内含的 iptables/dnsmasq 必须编译支持 ipset
 
 # 安装：(均以 Tomato 为例）
 
