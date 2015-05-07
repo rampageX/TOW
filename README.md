@@ -2,15 +2,12 @@
 
 TOW 是一个安装在路由器系统上的软件包，安装之后，可以保证连接在这个路由器上的所有客户端透明翻墙。
 
-当前版本：1.0
+当前版本：1.1
 
 ## 功能
 
 TOW 的设计目标是透明化/自动化，理想情况下客户端用户无需关心哪些网站无法访问，可直连网站也不会因为使用二级代理而降低访问速度。
 
-- 使用 pdnsd 特性防止 DNS 污染，不使用 TCP 查询，保证 CDN 效果
-- 支持 GoAgent, SOCKS5, [shadowsocks](https://github.com/clowwindy/shadowsocks/wiki/Shadowsocks-%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E) 和 Obfuscated ssh 等代理服务器
-- 使用 gfwlist 和 ipset 配合 iptables 处理被墙网站，仅对被墙网站使用代理
 
 # 依赖
 
