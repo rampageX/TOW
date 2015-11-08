@@ -1,0 +1,97 @@
+﻿<!doctype html public '-//W3C//DTD HTML 4.0 Transitional //EN'>
+<html>
+<head>
+<title>README</title>
+<meta charset='UTF-8' />
+<meta name='generator' content='EverEdit' />
+<link href='E:\CoolTools\Notepad\everedit_x64\x64\mode\markdown\default.css' rel='stylesheet'></link>
+<link href='E:\CoolTools\Notepad\everedit_x64\x64\mode\markdown\prettify.css' rel='stylesheet'></link>
+<script type='text/javascript' src='E:\CoolTools\Notepad\everedit_x64\x64\mode\markdown\prettify.js'></script>
+<script type='text/javascript' src='E:\CoolTools\Notepad\everedit_x64\x64\mode\markdown\jquery-1.10.2.min.js'></script>
+<script type='text/javascript' src='E:\CoolTools\Notepad\everedit_x64\x64\mode\markdown\toc.js'></script>
+</head>
+<body>
+<div id='generated-toc'></div>
+<h1>TOW ( Transparent Over the Wall )</h1>
+
+<p>TOW 是一个安装在路由器系统上的软件包，安装之后，可以保证连接在这个路由器上的所有客户端透明翻墙。</p>
+
+<p>当前版本：1.1</p>
+
+<h2>功能</h2>
+
+<p>TOW 的设计目标是透明化/自动化，理想情况下客户端用户无需关心哪些网站无法访问，可直连网站也不会因为使用二级代理而降低访问速度。</p>
+
+<h1>依赖</h1>
+
+<ul>
+<li>一台支持 <a href="http://http://tomato.groov.pl/">Tomato Shibby MOD</a> （国内为 <a href="http://www.right.com.cn/forum/thread-126746-1-1.html">bwq518 增强版</a>，已自带 TOW 功能，推荐使用）或者 <a href="http://www.lostrealm.ca/tower/node/80">RMerlin</a>, <a href="http://code.google.com/p/rt-n56u/">Padavan</a> 固件的路由器</li>
+<li>固件内含的 iptables/dnsmasq 必须编译支持 ipset</li>
+</ul>
+
+<h1>流程以及文件解析</h1>
+
+<h3>自启动以及防火墙</h3>
+
+<p>关键目录和文件：<code>/opt/.autorun</code>, <code>/opt/etc/config</code>。</p>
+
+<p><code>/opt/.autorun</code> 文件利用了 Tomato Optware 的特点：在任何挂载设备根目录下如果存在 <code>.autorun</code> 结尾的文件,则在挂载此设备后执行该文件。<code>.autorun</code> 文件代码：</p>
+
+<pre><code class="sh">if [ -f /var/notice/wan ]; then
+   for s in /opt/etc/config/*.wanup; do $s; done
+   for s in /opt/etc/config/*.fire; do $s; done
+fi</code></pre>
+
+<p>表示在 WAN 上线后，运行 <code>/opt/etc/config</code> 下所有以 <code>wanup</code> 和 <code>fire</code> 为后缀的文件。</p>
+
+<p><code>*.fire</code> 为防火墙脚本，和 Tomato 图形界面中设置防火墙脚本作用是一样的。这个脚本在 TOW 方案中极为重要，可以仔细阅读一下源代码；</p>
+
+<p><code>*.wanup</code> 为自启动程序列表，所需的主要程序 shadowsocks，redsocks 等都由这个文件调用启动。</p>
+
+<h3>DNS 处理</h3>
+
+<p>关键目录和文件： <code>/opt/etc/dnsmasq</code></p>
+
+<p>&#8230;待完成&#8230;</p>
+
+<h3>程序的启动/停止/重启以及监控</h3>
+
+<p>关键目录和文件： <code>/opt/etc/init.d</code> 下 S 开头的文件</p>
+
+<p>&#8230;待完成&#8230;</p>
+
+<h3>程序配置文件</h3>
+
+<p>关键目录和文件： <code>/opt/etc</code> 以及 <code>/opt/etc/init.d/S27obssh</code></p>
+
+<p>&#8230;待完成&#8230;</p>
+
+<h3>手动维护 ipset 的 gfwlist 列表</h3>
+
+<p>关键文件： <code>/opt/etc/init.d</code> 下 dmadd, dmdel, dmcheck 三个文件</p>
+
+<p>&#8230;待完成&#8230;</p>
+
+<h1>致谢</h1>
+
+<p>贡献代码：</p>
+
+<ul>
+<li>autogfwlist 维护的黑名单；</li>
+<li>lantern 维护的黑名单；</li>
+<li>n0wa11 维护的白名单；</li>
+<li>panda 维护的白名单；</li>
+<li>semigodking 修改的 redsocks2；</li>
+<li>OpenWRT RA-MOD；</li>
+<li>fqdns/西厢3的 dns 钓鱼脚本；</li>
+</ul>
+<script type='text/javascript'>
+$(document).ready(function(){
+  if($('code').length>0){
+    $('code').parent().addClass('prettyprint linenums');
+    prettyPrint();
+};
+});
+</script>
+</body>
+</html>
